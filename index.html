@@ -53,6 +53,10 @@ a{color:#f2efe8;text-decoration:none}a:hover{color:#ff8a3d}
   /* softer chromatic aberration on the big headline at tiny sizes */
   [data-hero] h1{text-shadow:-1.5px 0 rgba(255,40,70,.6),1.5px 0 rgba(0,220,255,.55) !important}
 }
+/* ---- accessibility: kill auto-playing motion for reduced-motion users ---- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important}
+}
 </style>
 </helmet>
 
@@ -245,6 +249,8 @@ class Component extends DCLogic {
       const start = () => { if (ready) return; ready = true; upload(); resize(); cover(); loop(); };
       const loop = () => {
         this._heroRaf = requestAnimationFrame(loop);
+        const cr = canvas.getBoundingClientRect();
+        if (cr.bottom < 0 || cr.top > window.innerHeight) return; // skip draw when hero off-screen
         resize(); cover();
         const now = performance.now();
         if (touchOnly || !h.active) { const tt = (now - h.t0) / 1000; h.tx = 0.5 + Math.sin(tt * .35) * .22; h.ty = 0.42 + Math.cos(tt * .27) * .16; }
@@ -260,7 +266,12 @@ class Component extends DCLogic {
   }
   componentDidMount() {
     this.initHeroGL();
-    this._clock = setInterval(() => this.setState({ now: Date.now() }), 1000);
+    // Re-render on the 1Hz clock ONLY while the hero (its live time stamp) is on screen —
+    // no idle full re-render mid-page. Footer LED blink comes from footTick's own rAF.
+    this._clock = setInterval(() => {
+      const h = document.querySelector('[data-hero]');
+      if (h) { const r = h.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) this.setState({ now: Date.now() }); }
+    }, 1000);
     // HOW stage: touch devices get an auto-driven cursor; mouse speed decays every frame
     this._touch = matchMedia('(hover: none)').matches;
     const howTick = () => {
@@ -317,7 +328,6 @@ class Component extends DCLogic {
     window.addEventListener('scroll', this._track, { passive: true });
     window.addEventListener('resize', this._track);
     track();
-    const root = this.root || document;
     const els = document.querySelectorAll('[data-reveal]');
     const io = new IntersectionObserver((entries) => {
       entries.forEach(e => {
@@ -339,12 +349,16 @@ class Component extends DCLogic {
     this._onScroll = inView;
     window.addEventListener('scroll', inView, { passive: true });
     setTimeout(() => document.querySelectorAll('[data-screen-label="Hero"] [data-reveal]').forEach(show), 80);
+    // release a dragged gallery print even if the pointer is let go outside the gallery
+    this._globalUp = () => { if (this.state.drag) this.setState({ drag: null }); };
+    window.addEventListener('mouseup', this._globalUp);
+    window.addEventListener('touchend', this._globalUp);
     this._safety = setTimeout(() => { inView(); document.querySelectorAll('[data-reveal]').forEach(el => { if (el.style.opacity !== '1' && el.getBoundingClientRect().top < window.innerHeight * 1.5) show(el); }); }, 2500);
   }
   componentDidUpdate() {
     if (this._io) document.querySelectorAll('[data-reveal]').forEach(el => { if (el.style.opacity !== '1') this._io.observe(el); });
   }
-  componentWillUnmount() { clearInterval(this._clock); cancelAnimationFrame(this._howRaf); cancelAnimationFrame(this._heroRaf); cancelAnimationFrame(this._footRaf); window.removeEventListener('resize', this._heroResize); window.removeEventListener('scroll', this._track); window.removeEventListener('resize', this._track); this._io && this._io.disconnect(); this._mo && this._mo.disconnect(); window.removeEventListener('scroll', this._onScroll); clearTimeout(this._safety); }
+  componentWillUnmount() { clearInterval(this._clock); cancelAnimationFrame(this._howRaf); cancelAnimationFrame(this._heroRaf); cancelAnimationFrame(this._footRaf); window.removeEventListener('resize', this._heroResize); window.removeEventListener('scroll', this._track); window.removeEventListener('resize', this._track); this._io && this._io.disconnect(); this._mo && this._mo.disconnect(); window.removeEventListener('scroll', this._onScroll); clearTimeout(this._safety); window.removeEventListener('mouseup', this._globalUp); window.removeEventListener('touchend', this._globalUp); }
   renderVals() {
     const grain = this.props.grainIntensity ?? 0.22;
     const motion = this.props.motion ?? true;
