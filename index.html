@@ -36,14 +36,22 @@ a{color:#f2efe8;text-decoration:none}a:hover{color:#ff8a3d}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes stampGlow{0%,100%{opacity:.85}50%{opacity:1}}
 
+/* ---- phones & small tablets ---- */
 @media (max-width:640px){
   /* legibility: thinner outline on big outlined headlines */
   [data-hero] h1,[data-footer] h2{-webkit-text-stroke-width:1px !important;letter-spacing:-.03em !important}
   /* tame oversized viewport-height section padding on tall phones */
   [data-screen-label="Recent exposures"]{padding-top:72px !important;padding-bottom:72px !important}
   [data-screen-label="Private"]{padding-top:80px !important;padding-bottom:80px !important}
-  /* date stamps never clip */
-  [style*="DSEG7"]{font-size:13px !important}
+  /* date stamps smaller + less skew so they don't clip */
+  [style*="DSEG7"]{font-size:12px !important;letter-spacing:.02em !important;transform:skewX(-4deg) !important}
+}
+/* ---- small phones ---- */
+@media (max-width:430px){
+  /* hero date stamp must not clip: shrink hard, kill skew + letter-spacing */
+  [style*="DSEG7"]{font-size:10px !important;letter-spacing:0 !important;transform:none !important}
+  /* softer chromatic aberration on the big headline at tiny sizes */
+  [data-hero] h1{text-shadow:-1.5px 0 rgba(255,40,70,.6),1.5px 0 rgba(0,220,255,.55) !important}
 }
 </style>
 </helmet>
